@@ -1,0 +1,92 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    margin: 0;
+    padding: 15px;
+    width: 300px;
+    background-color: #ffffff;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+h1 {
+    font-size: 18px;
+    margin: 0 0 10px;
+    color: #202124;
+    text-align: center;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.primary-button {
+    background-color: #1a73e8;
+    color: white;
+}
+
+.primary-button:hover {
+    background-color: #1557b0;
+}
+
+.secondary-button {
+    background-color: #ffffff;
+    color: #1a73e8;
+    border: 1px solid #1a73e8;
+}
+
+.secondary-button:hover {
+    background-color: #f1f3f4;
+}
+
+.sort-select {
+    padding: 8px 12px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #3c4043;
+    background-color: white;
+}
+
+.status-message {
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    margin-top: 10px;
+}
+
+.status-message.success {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.status-message.error {
+    background-color: #fce8e6;
+    color: #c5221f;
+}
+
+.hidden {
+    display: none;
+}
+
+button:disabled {
+    background-color: #dadce0;
+    color: #80868b;
+    cursor: not-allowed;
+}
