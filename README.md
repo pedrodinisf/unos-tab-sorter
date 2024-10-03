@@ -2,7 +2,9 @@
  
 ## Overview
 Tool to sort randomly opened tabs by TLD and open a window per TLD with all the tabs belonging to that TLD.
-Export to csv of final table.
+### Features:
+- Sort by TLD and close og windows
+- Export new sorted tab / url to CSV format
 
 
 
