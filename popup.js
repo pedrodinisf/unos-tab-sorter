@@ -59,15 +59,27 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-document.getElementById("export-csv-button").addEventListener("click", () => {
-    // Change to a promise-based communication to handle port closure anomalies
-    chrome.runtime.sendMessage({action: "exportCSV"}, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error("Error sending message: ", chrome.runtime.lastError);
-      } else if (response && response.error) {
-        console.error("Error received in response: ", response.error);
-      } else {
-        console.log("CSV export initiated successfully.");
-      }
-    });
-  });
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const sortButton = document.getElementById("sort-button");
+    const exportButton = document.getElementById("export-csv");
+    
+    if (sortButton) {
+        sortButton.addEventListener("click", () => {
+            console.log("Sort Tabs button clicked!");
+            // Implement sorting logic here
+        });
+    } else {
+        console.error('Sort button not found!');
+    }
+    
+    if (exportButton) {
+        exportButton.addEventListener("click", () => {
+            console.log("Export to CSV button clicked!");
+            // Implement CSV export logic here
+        });
+    } else {
+        console.error('Export CSV button not found!');
+    }
+});

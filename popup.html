@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Unos Tab Sorter</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -20,6 +21,6 @@
         </button>
         <div id="status-message" class="status-message hidden"></div>
     </div>
-    <script src="popup.js"></script>
+    <script src="popup.js" defer></script> <!-- Use defer to ensure script runs after DOM is parsed -->
 </body>
 </html>
