@@ -22,3 +22,6 @@ root
 
 └── styles.css
 
+## TODO
+keep track of tab opening timestamps to build a timelapse of ideas opened at the same time, even in multiple windows
+keep track of the order in which the tabs were opened (and closed) to have access to all the metadata about my chrome opened tabs.
