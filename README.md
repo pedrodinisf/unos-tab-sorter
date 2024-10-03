@@ -3,7 +3,7 @@
 ## Overview
 Tool to sort randomly opened tabs by TLD and open a window per TLD with all the tabs belonging to that TLD.
 ### Features:
-- Sort by TLD and close og windows
+- Sort tabs by TLD, open a window per TLD and close Original Chrome windows
 - Export new sorted tab / url to CSV format
 
 
