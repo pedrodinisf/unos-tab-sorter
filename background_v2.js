@@ -117,22 +117,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return acc;
             }, {});
 
-            const originalWindowIds = Array.from(new Set(tabData.map(tab => tab.windowId)));
-            await openWindowsByTLD(tldToTabs, originalWindowIds);
-            return "Tabs sorted successfully (Close & Reopen).";
-        },
-        sortTabsMove: async () => {
-            const tabData = await collectAndSortTabs(request.method);
-            await chrome.storage.local.set({ originalTabs: tabData });
-
-            const tldToTabs = tabData.reduce((acc, tab) => {
-                acc[tab.tld] = acc[tab.tld] || [];
-                acc[tab.tld].push(tab);
-                return acc;
-            }, {});
-
             await organizeTabsByTLD(tldToTabs);
-            return "Tabs sorted successfully (Move).";
+            return "Tabs sorted successfully.";
         }
     };
 
@@ -150,40 +136,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Helper functions for window manipulation
-async function openWindowsByTLD(tldToTabs, originalWindowIds) {
-    try {
-        const newWindows = await Promise.all(
-            Object.entries(tldToTabs).map(([tld, tabs]) =>
-                chrome.windows.create({ url: tabs.map(tab => tab.url) })
-            )
-        );
-        const newWindowIds = newWindows.map(window => window.id);
-        await closeOriginalWindows(originalWindowIds, newWindowIds);
-    } catch (error) {
-        console.error("Error opening windows by TLD:", error);
-        throw error;
-    }
-}
-
-async function closeOriginalWindows(originalWindowIds, newWindowIds) {
-    try {
-        const closePromises = originalWindowIds
-            .filter(windowId => !newWindowIds.includes(windowId))
-            .map(windowId => chrome.windows.remove(windowId));
-        await Promise.all(closePromises);
-    } catch (error) {
-        console.error("Error closing original windows:", error);
-    }
-}
-
-// Event listener to clean up tab open times on tab removal
-chrome.tabs.onRemoved.addListener((tabId) => {
-    delete tabOpenTimes[tabId];
-    chrome.storage.local.set({tabOpenTimes: tabOpenTimes}); // Update storage after removal
-});
-
-// New helper function for tab movement
+// Updated helper function for window manipulation
 async function organizeTabsByTLD(tldToTabs) {
     try {
         const windows = await chrome.windows.getAll({ populate: true });
@@ -226,3 +179,9 @@ async function organizeTabsByTLD(tldToTabs) {
         throw error;
     }
 }
+
+// Event listener to clean up tab open times on tab removal
+chrome.tabs.onRemoved.addListener((tabId) => {
+    delete tabOpenTimes[tabId];
+    chrome.storage.local.set({tabOpenTimes: tabOpenTimes}); // Update storage after removal
+});

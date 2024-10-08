@@ -10,7 +10,10 @@
         <h1>Unos Tab Sorter</h1>
         <div class="button-group">
             <button id="sort-button" class="primary-button">
-                Sort Tabs
+                Sort Tabs (Close & Reopen)
+            </button>
+            <button id="sort-move" class="primary-button">
+                Sort Tabs (Move)
             </button>
             <select id="sort-method" class="sort-select">
                 <option value="tld">By Top-Level Domain</option>
@@ -21,6 +24,6 @@
         </button>
         <div id="status-message" class="status-message hidden"></div>
     </div>
-    <script src="popup.js" defer></script> <!-- Use defer to ensure script runs after DOM is parsed -->
+    <script src="popup.js" defer></script>
 </body>
 </html>

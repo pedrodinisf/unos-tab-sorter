@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const sortButton = document.getElementById('sort-button');
+    const sortMoveButton = document.getElementById('sort-move');
     const exportButton = document.getElementById('export-csv');
     const sortMethod = document.getElementById('sort-method');
     const statusMessage = document.getElementById('status-message');
@@ -19,7 +20,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function handleAction(action, params = {}) {
-        const button = action === 'sortTabs' ? sortButton : exportButton;
+        const button = action === 'sortTabs' ? sortButton : 
+                       action === 'sortTabsMove' ? sortMoveButton : exportButton;
         button.disabled = true;
         
         try {
@@ -51,6 +53,11 @@ document.addEventListener('DOMContentLoaded', function() {
     sortButton.addEventListener('click', async () => {
         const method = sortMethod.value;
         await handleAction('sortTabs', { method });
+    });
+
+    sortMoveButton.addEventListener('click', async () => {
+        const method = sortMethod.value;
+        await handleAction('sortTabsMove', { method });
     });
 
     exportButton.addEventListener('click', async () => {
