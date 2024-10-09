@@ -122,58 +122,196 @@ async function handleExportCSV() {
 // Message handler for various actions
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log(`Received message. Action: ${request.action}`);
-    const actions = {
-        exportCSV: handleExportCSV,
-        sortTabs: async () => {
-            console.log("Sorting tabs (Close & Reopen method)");
-            const tabData = await collectAndSortTabs(request.method);
-            await chrome.storage.local.set({ originalTabs: tabData });
+    try {
+        const actions = {
+            exportCSV: handleExportCSV,
+            sortTabs: async () => {
+                console.log("Sorting tabs (Close & Reopen method)");
+                const tabData = await collectAndSortTabs(request.method);
+                await chrome.storage.local.set({ originalTabs: tabData });
 
-            const tldToTabs = tabData.reduce((acc, tab) => {
-                acc[tab.tld] = acc[tab.tld] || [];
-                acc[tab.tld].push(tab);
-                return acc;
-            }, {});
+                const tldToTabs = tabData.reduce((acc, tab) => {
+                    acc[tab.tld] = acc[tab.tld] || [];
+                    acc[tab.tld].push(tab);
+                    return acc;
+                }, {});
 
-            await organizeTabsByTLD(tldToTabs);
-            console.log("Tab sorting (Close & Reopen) completed");
-            return "Tabs sorted successfully.";
-        },
-        sortTabsMove: async () => {
-            console.log("Sorting tabs (Move method)");
-            const tabData = await collectAndSortTabs(request.method);
-            const tldToTabs = tabData.reduce((acc, tab) => {
-                acc[tab.tld] = acc[tab.tld] || [];
-                acc[tab.tld].push(tab);
-                return acc;
-            }, {});
+                await organizeTabsByTLD(tldToTabs);
+                console.log("Tab sorting (Close & Reopen) completed");
+                return "Tabs sorted successfully.";
+            },
+            sortTabsMove: async () => {
+                console.log("Sorting tabs (Move method)");
+                const tabData = await collectAndSortTabs(request.method);
+                const tldToTabs = tabData.reduce((acc, tab) => {
+                    acc[tab.tld] = acc[tab.tld] || [];
+                    acc[tab.tld].push(tab);
+                    return acc;
+                }, {});
 
-            await organizeTabsByTLD(tldToTabs);
-            console.log("Tab sorting (Move) completed");
-            return "Tabs sorted successfully (Move).";
+                await organizeTabsByTLD(tldToTabs);
+                console.log("Tab sorting (Move) completed");
+                return "Tabs sorted successfully (Move).";
+            }
+        };
+
+        const action = actions[request.action];
+        if (action) {
+            action()
+                .then(result => {
+                    console.log(`Action ${request.action} completed. Result:`, result);
+                    sendResponse({ result });
+                })
+                .catch(error => {
+                    console.error(`Error processing ${request.action}:`, error);
+                    sendResponse({ error: error.message });
+                });
+            return true; // Indicates asynchronous response
+        } else {
+            console.error(`Unknown action: ${request.action}`);
+            sendResponse({ error: `Unknown action: ${request.action}` });
         }
-    };
-
-    const action = actions[request.action];
-    if (action) {
-        action()
-            .then(result => {
-                console.log(`Action ${request.action} completed. Result:`, result);
-                sendResponse({ result });
-            })
-            .catch(error => {
-                console.error(`Error processing ${request.action}:`, error);
-                sendResponse({ error: error.message });
-            });
-        return true; // Indicates asynchronous response
-    } else {
-        console.error(`Unknown action: ${request.action}`);
-        sendResponse({ error: `Unknown action: ${request.action}` });
+    } catch (error) {
+        console.error("Error in message listener:", error);
+        sendResponse({ error: error.message });
     }
 });
 
 // Helper function for window manipulation
 async function organizeTabsByTLD(tldToTabs) {
+    console.log("Starting tab organization by TLD");
+    try {
+        // Get all windows for the current profile
+        const windows = await chrome.windows.getAll({ populate: true });
+        const existingWindows = new Map(windows.map(window => [window.id, window]));
+
+        const windowAssignments = new Map();
+
+        for (const [tld, tabs] of Object.entries(tldToTabs)) {
+            let targetWindowId = null;
+
+            // Check if there's an existing window with tabs from this TLD
+            for (const [windowId, window] of existingWindows) {
+                if (window.tabs.some(tab => {
+                    try {
+                        return new URL(tab.url).hostname.split('.').slice(-2).join('.') === tld;
+                    } catch {
+                        return false;
+                    }
+                })) {
+                    targetWindowId = windowId;
+                    console.log(`Found existing window ${windowId} for TLD ${tld}`);
+                    break;
+                }
+            }
+
+            // If no existing window found, create a new one
+            if (!targetWindowId) {
+                console.log(`Creating new window for TLD: ${tld}`);
+                try {
+                    const newWindow = await chrome.windows.create({ focused: false });
+                    targetWindowId = newWindow.id;
+                    existingWindows.set(targetWindowId, newWindow);
+                    console.log(`Created new window ${targetWindowId} for TLD ${tld}`);
+                } catch (error) {
+                    console.error(`Failed to create new window for TLD ${tld}: ${error.message}`);
+                    continue;
+                }
+            }
+
+            windowAssignments.set(tld, targetWindowId);
+
+            // Move tabs to the assigned window
+            for (const tab of tabs) {
+                if (tab.windowId !== targetWindowId) {
+                    console.log(`Moving tab ${tab.id} from window ${tab.windowId} to window ${targetWindowId}`);
+                    try {
+                        await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 });
+                        console.log(`Successfully moved tab ${tab.id} to window ${targetWindowId}`);
+                    } catch (error) {
+                        console.error(`Error moving tab ${tab.id}: ${error.message}`);
+                    }
+                } else {
+                    console.log(`Tab ${tab.id} already in correct window ${targetWindowId}`);
+                }
+            }
+        }
+
+        console.log("Tab organization by TLD completed");
+    } catch (error) {
+        console.error("Error organizing tabs by TLD:", error);
+        throw error;
+    }
+}
+
+async function organizeTabsByTLD_v2(tldToTabs) {
+    console.log("Starting tab organization by TLD");
+    try {
+        const existingWindows = new Map();
+        const windows = await chrome.windows.getAll({ populate: true });
+        windows.forEach(window => existingWindows.set(window.id, window));
+
+        const windowAssignments = new Map();
+
+        for (const [tld, tabs] of Object.entries(tldToTabs)) {
+            let targetWindowId = null;
+
+            // Check if there's an existing window with tabs from this TLD
+            for (const [windowId, window] of existingWindows) {
+                if (window.tabs.some(tab => {
+                    try {
+                        return new URL(tab.url).hostname.split('.').slice(-2).join('.') === tld;
+                    } catch {
+                        return false;
+                    }
+                })) {
+                    targetWindowId = windowId;
+                    console.log(`Found existing window ${windowId} for TLD ${tld}`);
+                    break;
+                }
+            }
+
+            // If no existing window found, create a new one
+            if (!targetWindowId) {
+                console.log(`Creating new window for TLD: ${tld}`);
+                try {
+                    const newWindow = await chrome.windows.create({ focused: false });
+                    targetWindowId = newWindow.id;
+                    existingWindows.set(targetWindowId, newWindow);
+                    console.log(`Created new window ${targetWindowId} for TLD ${tld}`);
+                } catch (error) {
+                    console.error(`Failed to create new window for TLD ${tld}: ${error.message}`);
+                    continue;
+                }
+            }
+
+            windowAssignments.set(tld, targetWindowId);
+
+            // Move tabs to the assigned window
+            for (const tab of tabs) {
+                if (tab.windowId !== targetWindowId) {
+                    console.log(`Moving tab ${tab.id} from window ${tab.windowId} to window ${targetWindowId}`);
+                    try {
+                        await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 });
+                        console.log(`Successfully moved tab ${tab.id} to window ${targetWindowId}`);
+                    } catch (error) {
+                        console.error(`Error moving tab ${tab.id}: ${error.message}`);
+                    }
+                } else {
+                    console.log(`Tab ${tab.id} already in correct window ${targetWindowId}`);
+                }
+            }
+        }
+
+        console.log("Tab organization by TLD completed");
+    } catch (error) {
+        console.error("Error organizing tabs by TLD:", error);
+        throw error;
+    }
+}
+
+// Helper function for window manipulation
+async function organizeTabsByTLD_v1(tldToTabs) {
     console.log("Starting tab organization");
     try {
         const windows = await chrome.windows.getAll({ populate: true });
@@ -238,6 +376,89 @@ async function organizeTabsByTLD(tldToTabs) {
                 console.log(`Closing empty window ${windowId}`);
                 await chrome.windows.remove(windowId);
                 console.log(`Closed empty window ${windowId}`);
+            }
+        }
+
+        console.log("Tab organization completed");
+    } catch (error) {
+        console.error("Error organizing tabs by TLD:", error);
+        throw error;
+    }
+}
+async function organizeTabsByTLD_v2(tldToTabs) {
+    console.log("Starting tab organization");
+    try {
+        const windows = await chrome.windows.getAll({ populate: true });
+        console.log(`Found ${windows.length} windows`);
+        const existingWindows = new Map(windows.map(w => [w.id, w]));
+        const tlds = Object.keys(tldToTabs);
+        const windowAssignments = new Map();
+
+        // Assign TLDs to existing windows or create new ones
+        for (const tld of tlds) {
+            let targetWindowId;
+            // First, try to find an existing window with tabs from this TLD
+            for (const [windowId, window] of existingWindows) {
+                if (window.tabs.some(t => {
+                    try {
+                        return new URL(t.url).hostname.split('.').slice(-2).join('.') === tld;
+                    } catch {
+                        return false;
+                    }
+                })) {
+                    targetWindowId = windowId;
+                    console.log(`Assigned TLD ${tld} to existing window ${windowId}`);
+                    break;
+                }
+            }
+            
+            // If no existing window found, create a new one
+            if (!targetWindowId) {
+                console.log(`Creating new window for TLD: ${tld}`);
+                try {
+                    const newWindow = await chrome.windows.create({ focused: false });
+                    targetWindowId = newWindow.id;
+                    existingWindows.set(targetWindowId, newWindow);
+                    console.log(`Created new window ${targetWindowId} for TLD ${tld}`);
+                } catch (error) {
+                    console.error(`Failed to create new window for TLD ${tld}: ${error.message}`);
+                    continue;
+                }
+            }
+            
+            windowAssignments.set(tld, targetWindowId);
+        }
+
+        // Move tabs to their assigned windows
+        for (const [tld, tabs] of Object.entries(tldToTabs)) {
+            const targetWindowId = windowAssignments.get(tld);
+            console.log(`Moving ${tabs.length} tabs for TLD ${tld} to window ${targetWindowId}`);
+            for (const tab of tabs) {
+                if (tab.windowId !== targetWindowId) {
+                    console.log(`Moving tab ${tab.id} from window ${tab.windowId} to window ${targetWindowId}`);
+                    try {
+                        await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 });
+                        console.log(`Successfully moved tab ${tab.id} to window ${targetWindowId}`);
+                    } catch (error) {
+                        console.error(`Error moving tab ${tab.id}: ${error.message}`);
+                    }
+                } else {
+                    console.log(`Tab ${tab.id} already in correct window ${targetWindowId}`);
+                }
+            }
+        }
+
+        // Close any windows that are now empty
+        for (const [windowId, window] of existingWindows) {
+            const updatedTabs = await chrome.tabs.query({ windowId });
+            if (updatedTabs.length === 0) {
+                console.log(`Closing empty window ${windowId}`);
+                try {
+                    await chrome.windows.remove(windowId);
+                    console.log(`Closed empty window ${windowId}`);
+                } catch (error) {
+                    console.error(`Error closing window ${windowId}: ${error.message}`);
+                }
             }
         }
 
